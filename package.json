@@ -1,13 +1,13 @@
 {
-  "name": "@frost-beta/llama3",
+  "name": "llama3",
   "version": "0.0.1",
-  "main": "model.js",
+  "main": "llm.js",
   "type": "module",
   "bin": {
     "llama3-chat": "chat.js"
   },
   "dependencies": {
     "@frost-beta/mlx": "0.0.5",
-    "llama3-tokenizer-js": "1.1.2"
+    "@lenml/tokenizers": "1.0.2"
   }
 }
