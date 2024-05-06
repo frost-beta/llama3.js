@@ -1,6 +1,6 @@
 {
   "name": "llama3",
-  "version": "0.0.1",
+  "version": "0.0.1-dev",
   "main": "llm.js",
   "type": "module",
   "bin": {

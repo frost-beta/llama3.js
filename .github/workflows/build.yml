@@ -1,0 +1,29 @@
+name: build
+
+on: push
+
+jobs:
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get tag
+        run: echo "VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+
+      - name: Set package version
+        run: |
+          npm config set git-tag-version=false
+          npm version $VERSION
+
+      - name: Install deps
+        run: yarn
+
+      - name: Publish npm package
+        uses: JS-DevTools/npm-publish@v3
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
+          access: public
