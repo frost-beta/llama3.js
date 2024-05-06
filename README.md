@@ -1,7 +1,5 @@
 # llama3.js
 
-:construction:
-
 A JavaScript implementation of Llama 3 using [node-mlx](https://github.com/frost-beta/node-mlx).
 
 The code is modified from [mlx-examples](https://github.com/ml-explore/mlx-examples).
@@ -18,7 +16,7 @@ huggingface-cli download mlx-community/Meta-Llama-3-8B-Instruct-8bit --local-dir
 Start chating:
 
 ```sh
-npm install -g @frost-beta/llama3
+npm install -g llama3
 llama3-chat ./weights
 ```
 
