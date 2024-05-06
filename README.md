@@ -1,8 +1,9 @@
 # llama3.js
 
-A JavaScript implementation of Llama 3 using [node-mlx](https://github.com/frost-beta/node-mlx).
+A JavaScript implementation of Llama 3 using [node-mlx](https://github.com/frost-beta/node-mlx),
+code modified from [mlx-examples](https://github.com/ml-explore/mlx-examples).
 
-The code is modified from [mlx-examples](https://github.com/ml-explore/mlx-examples).
+__Quantized models can only run on Macs with Apple Silicon.__
 
 ## Usage
 
