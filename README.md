@@ -11,7 +11,8 @@ Download weights
 (more can be found at [mlx-community](https://huggingface.co/collections/mlx-community/llama-3-662156b069a5d33b3328603c)):
 
 ```sh
-huggingface-cli download mlx-community/Meta-Llama-3-8B-Instruct-8bit --local-dir weights
+npm install -g @frost-beta/huggingface
+huggingface download --to weights mlx-community/Meta-Llama-3-8B-Instruct-8bit
 ```
 
 Start chating:

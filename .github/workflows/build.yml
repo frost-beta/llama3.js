@@ -8,17 +8,15 @@ jobs:
 
     steps:
       - name: Install dependencies
-        run: brew install huggingface-cli
+        run: npm install -g @frost-beta/huggingface
 
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: true
 
       - name: Test
         run: |
+          huggingface download --to weights-4bit mlx-community/Meta-Llama-3-8B-Instruct-4bit
           yarn
-          huggingface-cli download mlx-community/Meta-Llama-3-8B-Instruct-4bit --local-dir weights-4bit
           echo Hello | node chat.js weights-4bit
 
   publish:

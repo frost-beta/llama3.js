@@ -6,6 +6,15 @@
   "bin": {
     "llama3-chat": "chat.js"
   },
+  "author": "zcbenz",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frost-beta/llama3.js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/frost-beta/llama3.js/issues"
+  },
   "dependencies": {
     "@frost-beta/mlx": "0.0.5",
     "@lenml/tokenizers": "1.0.2"
