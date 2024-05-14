@@ -16,7 +16,7 @@
     "url": "https://github.com/frost-beta/llama3.js/issues"
   },
   "dependencies": {
-    "@frost-beta/mlx": "0.0.5",
+    "@frost-beta/mlx": "0.0.6",
     "@lenml/tokenizers": "1.0.2"
   }
 }

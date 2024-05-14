@@ -3,7 +3,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import readline from 'node:readline/promises';
-import mlx from '@frost-beta/mlx'
+import {core as mx} from '@frost-beta/mlx'
 import {TokenizerLoader} from '@lenml/tokenizers'
 import {loadModel, step} from './llm.js'
 
@@ -46,7 +46,7 @@ async function main(dir) {
 function talk(tokenizer, model, messages) {
   // Translate the messages to tokens.
   const prompt = tokenizer.apply_chat_template(messages, {return_tensor: false})
-  const promptTokens = mlx.core.array(prompt, mlx.core.int32)
+  const promptTokens = mx.array(prompt, mx.int32)
 
   // The token marking the end of conversation.
   // TODO(zcbenz): eos_token_id not available, is it a bug of transformers.js?

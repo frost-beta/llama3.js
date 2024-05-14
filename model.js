@@ -1,6 +1,4 @@
-import mlx from '@frost-beta/mlx'
-
-const {core: mx, nn} = mlx
+import {core as mx, nn} from '@frost-beta/mlx'
 
 class Attention extends nn.Module {
   constructor(args) {

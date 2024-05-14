@@ -1,11 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import mlx from '@frost-beta/mlx'
+import {core as mx, nn} from '@frost-beta/mlx'
 
 import {Model} from './model.js'
-
-// TODO(zcbenz): Provide esm exports for node-mlx.
-const {core: mx, nn} = mlx
 
 // Return a model.
 export function loadModel(dir) {
