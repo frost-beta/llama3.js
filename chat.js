@@ -12,6 +12,11 @@ if (process.argv.length < 3) {
   process.exit(0)
 }
 
+// Disable buffer cache in MLX, so the RAM usage would go back to normal after
+// inferencing a LLM.
+// TODO(zcbenz): Remove this after we can get tensors better garbage collected.
+mx.metal.setCacheLimit(0)
+
 main(process.argv[2])
 
 async function main(dir) {
@@ -37,13 +42,13 @@ async function main(dir) {
     const question = await rl.question('You> ')
     messages.push({role: 'user', content: question})
     process.stdout.write('Assistant> ')
-    const reply = talk(tokenizer, model, messages)
+    const reply = await talk(tokenizer, model, messages)
     messages.push({role: 'assistant', content: reply})
   }
 }
 
 // Send full messages history to model and get response.
-function talk(tokenizer, model, messages) {
+async function talk(tokenizer, model, messages) {
   // Translate the messages to tokens.
   const prompt = tokenizer.apply_chat_template(messages, {return_tensor: false})
   const promptTokens = mx.array(prompt, mx.int32)
@@ -59,7 +64,13 @@ function talk(tokenizer, model, messages) {
     if (char == eosToken)
       break
     text += char
-    process.stdout.write(char)
+    // Write output and wait until it is flushed. This is not good for
+    // performance but gives GC a chance to run.
+    // https://github.com/frost-beta/node-mlx/issues/2#issuecomment-2207874297
+    // TODO(zcbenz): Remove this after we can get tensors better garbage
+    // collected.
+    await new Promise((resolve) => process.stdout.write(char, resolve))
+    if (global.gc) gc()
   }
 
   process.stdout.write('\n')
