@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import nextTick from 'tick-promise'
 import {core as mx, nn} from '@frost-beta/mlx'
 
 import {Model} from './model.js'
@@ -52,11 +53,8 @@ export async function* step(promptTokens, model, topP = 1, temperature = 1) {
     const [token, prob] = mx.tidy(() => forward(tokens))
     tokens = [token]
     // Yield the result in the next tick of loop, so GC can get a chance to run.
-    // TODO(zcbenz): Use the async API after this MLX issue is solved:
-    // https://github.com/ml-explore/mlx/issues/1251
-    yield await new Promise((resolve) => {
-      process.nextTick(() => resolve([token, prob]))
-    })
+    await nextTick()
+    yield [token, prob]
   }
 }
 

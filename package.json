@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@frost-beta/mlx": "0.0.11",
-    "@lenml/tokenizers": "1.0.2"
+    "@lenml/tokenizers": "1.0.2",
+    "tick-promise": "1.0.0"
   }
 }
