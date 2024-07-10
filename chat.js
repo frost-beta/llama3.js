@@ -12,9 +12,10 @@ if (process.argv.length < 3) {
   process.exit(0)
 }
 
-// Disable buffer cache in MLX, so the RAM usage would go back to normal after
-// inferencing a LLM.
-// TODO(zcbenz): Remove this after we can get tensors better garbage collected.
+// The RAM usage "bursts" during inference as the arrays are freed only after
+// GC or mx.tidy ends, which ends up MLX taking more RAM than necessary. Disable
+// cache for now to make RAM usage look nice.
+// TODO(zcbenz): Add mx.dispose in model to remove bursts.
 mx.metal.setCacheLimit(0)
 
 main(process.argv[2])
@@ -51,7 +52,6 @@ async function main(dir) {
 async function talk(tokenizer, model, messages) {
   // Translate the messages to tokens.
   const prompt = tokenizer.apply_chat_template(messages, {return_tensor: false})
-  const promptTokens = mx.array(prompt, mx.int32)
 
   // The token marking the end of conversation.
   // TODO(zcbenz): eos_token_id not available, is it a bug of transformers.js?
@@ -59,18 +59,12 @@ async function talk(tokenizer, model, messages) {
 
   // Predict next tokens.
   let text = ''
-  for (const [token, prob] of step(promptTokens, model, 0.8)) {
+  for await (const [token, prob] of step(prompt, model, 0.8)) {
     const char = tokenizer.decode([token])
     if (char == eosToken)
       break
     text += char
-    // Write output and wait until it is flushed. This is not good for
-    // performance but gives GC a chance to run.
-    // https://github.com/frost-beta/node-mlx/issues/2#issuecomment-2207874297
-    // TODO(zcbenz): Remove this after we can get tensors better garbage
-    // collected.
-    await new Promise((resolve) => process.stdout.write(char, resolve))
-    if (global.gc) gc()
+    process.stdout.write(char)
   }
 
   process.stdout.write('\n')

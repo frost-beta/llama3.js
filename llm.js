@@ -35,19 +35,28 @@ export function loadModel(dir) {
 }
 
 // Generate tokens from prompt.
-export function* step(promptTokens, model, topP = 1, temperature = 1) {
+export async function* step(promptTokens, model, topP = 1, temperature = 1) {
   let cache = null
   const forward = (y) => {
     let logits
-    [logits, cache] = model.forward(y.index(mx.newaxis), cache)
+    [logits, cache] = model.forward(mx.array([y], mx.int32), cache)
     logits = logits.index(mx.Slice(), -1, mx.Slice())
-    return sample(logits, topP, temperature)
+    const [token, prob] = sample(logits, topP, temperature)
+    // The cache is also returned so it does not get freed by mx.tidy().
+    return [token.item(), prob.item(), cache]
   }
 
-  let y = promptTokens, p
+  let tokens = promptTokens
   while (true) {
-    [y, p] = forward(y)
-    yield [y.item(), p]
+    // Forward the tokens to model, and make sure intermediate tensors are freed.
+    const [token, prob] = mx.tidy(() => forward(tokens))
+    tokens = [token]
+    // Yield the result in the next tick of loop, so GC can get a chance to run.
+    // TODO(zcbenz): Use the async API after this MLX issue is solved:
+    // https://github.com/ml-explore/mlx/issues/1251
+    yield await new Promise((resolve) => {
+      process.nextTick(() => resolve([token, prob]))
+    })
   }
 }
 

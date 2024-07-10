@@ -38,6 +38,7 @@ class Attention extends nn.Module {
       keys = this.rope.forward(keys, keyCache.shape[2])
       keys = mx.concatenate([keyCache, keys], 2)
       values = mx.concatenate([valueCache, values], 2)
+      mx.dispose(cache)
     } else {
       queries = this.rope.forward(queries)
       keys = this.rope.forward(keys)
