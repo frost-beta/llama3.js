@@ -12,10 +12,9 @@ if (process.argv.length < 3) {
   process.exit(0)
 }
 
-// The RAM usage "bursts" during inference as the arrays are freed only after
-// GC or mx.tidy ends, which ends up MLX taking more RAM than necessary. Disable
-// cache for now to make RAM usage look nice.
-// TODO(zcbenz): Add mx.dispose in model to remove bursts.
+// We don't limit the total tokens, and RAM just keeps increasing as context is
+// being accumulated, without disabling cache the RAM will not go down to the
+// normal after generation is finished.
 mx.metal.setCacheLimit(0)
 
 main(process.argv[2])
