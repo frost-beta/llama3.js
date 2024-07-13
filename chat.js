@@ -1,11 +1,8 @@
 #!/usr/bin/env node
 
-import fs from 'node:fs'
-import path from 'node:path'
 import readline from 'node:readline/promises';
 import {core as mx} from '@frost-beta/mlx'
-import {TokenizerLoader} from '@lenml/tokenizers'
-import {loadModel, step} from './llm.js'
+import {loadTokenizer, loadModel, step} from './llm.js'
 
 if (process.argv.length < 3) {
   console.error('Usage: llama3 /path/to/weights/dir')
@@ -21,13 +18,10 @@ main(process.argv[2])
 
 async function main(dir) {
   // Load tokenizer.
-  const tokenizer = await TokenizerLoader.fromPreTrained({
-    tokenizerJSON: JSON.parse(fs.readFileSync(path.join(dir, 'tokenizer.json'))),
-    tokenizerConfig: JSON.parse(fs.readFileSync(path.join(dir, 'tokenizer_config.json'))),
-  })
+  const tokenizer = await loadTokenizer(dir)
 
   // Load model.
-  const model = loadModel(dir)
+  const model = await loadModel(dir)
 
   // Records the messages.
   const messages = []

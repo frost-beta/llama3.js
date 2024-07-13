@@ -1,16 +1,29 @@
-import fs from 'node:fs'
+import fs from 'node:fs/promises'
 import path from 'node:path'
 import nextTick from 'tick-promise'
+import {existsSync} from 'node:fs'
+import {TokenizerLoader} from '@lenml/tokenizers'
+import {fromPreTrained} from '@lenml/tokenizer-llama3'
 import {core as mx, nn} from '@frost-beta/mlx'
 
 import {Model} from './model.js'
 
+// Return a tokenizer.
+export async function loadTokenizer(dir) {
+  if (!existsSync(path.join(dir, 'tokenizer_config.json')))
+    return fromPreTrained()
+  return TokenizerLoader.fromPreTrained({
+    tokenizerJSON: JSON.parse(await fs.readFile(path.join(dir, 'tokenizer.json'))),
+    tokenizerConfig: JSON.parse(await fs.readFile(path.join(dir, 'tokenizer_config.json'))),
+  })
+}
+
 // Return a model.
-export function loadModel(dir) {
+export async function loadModel(dir) {
   // Read model config and weights.
-  const config = JSON.parse(fs.readFileSync(path.join(dir, 'config.json')))
+  const config = JSON.parse(await fs.readFile(path.join(dir, 'config.json')))
   const weights = {}
-  for (const filename of fs.readdirSync(dir)) {
+  for (const filename of await fs.readdir(dir)) {
     if (filename.endsWith('.safetensors'))
       Object.assign(weights, mx.load(path.join(dir, filename)))
   }
