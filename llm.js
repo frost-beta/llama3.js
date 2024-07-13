@@ -6,7 +6,7 @@ import {TokenizerLoader} from '@lenml/tokenizers'
 import {fromPreTrained} from '@lenml/tokenizer-llama3'
 import {core as mx, nn} from '@frost-beta/mlx'
 
-import {Model} from './model.js'
+import {KVCache, Model} from './model.js'
 
 // Return a tokenizer.
 export async function loadTokenizer(dir) {
@@ -49,11 +49,15 @@ export async function loadModel(dir) {
 }
 
 // Generate tokens from prompt.
-export async function* step(promptTokens, model, topP = 1, temperature = 1) {
-  let cache = null
+export async function* step(promptTokens, model, eosToken, topP = 1, temperature = 1) {
+  // Create KV Cache.
+  const cache = []
+  for (let i = 0; i < model.layers.length; ++i)
+    cache[i] = new KVCache(model.headDim, model.nKVHeads)
+
+  // Feed the tokens to model and get predictions.
   const forward = (y) => {
-    let logits
-    [logits, cache] = model.forward(mx.array([y], mx.int32), cache)
+    let logits = model.forward(mx.array([y], mx.int32), cache)
     logits = logits.index(mx.Slice(), -1, mx.Slice())
     const [token, prob] = sample(logits, topP, temperature)
     // The cache is also returned so it does not get freed by mx.tidy().
@@ -64,11 +68,17 @@ export async function* step(promptTokens, model, topP = 1, temperature = 1) {
   while (true) {
     // Forward the tokens to model, and make sure intermediate tensors are freed.
     const [token, prob] = mx.tidy(() => forward(tokens))
+    // Quit after getting EOS.
+    if (token == eosToken)
+      break
     tokens = [token]
     // Yield the result in the next tick of loop, so GC can get a chance to run.
     await nextTick()
     yield [token, prob]
   }
+
+  // Make sure cache is cleared after generation is done.
+  mx.dispose(cache)
 }
 
 // Pick the best token from logits.

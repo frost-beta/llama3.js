@@ -10,9 +10,9 @@ if (process.argv.length < 3) {
 }
 
 // We don't limit the total tokens, and RAM just keeps increasing as context is
-// being accumulated, without disabling cache the RAM will not go down to the
+// being accumulated, without limiting cache the RAM will not go down to the
 // normal after generation is finished.
-mx.metal.setCacheLimit(0)
+mx.metal.setCacheLimit(10 * 1024 ** 2)
 
 main(process.argv[2])
 
@@ -47,19 +47,21 @@ async function talk(tokenizer, model, messages) {
   const prompt = tokenizer.apply_chat_template(messages, {return_tensor: false})
 
   // The token marking the end of conversation.
-  // TODO(zcbenz): eos_token_id not available, is it a bug of transformers.js?
-  const eosToken = tokenizer.getToken('eos_token')
+  const eosToken = tokenizer.encode(tokenizer.getToken('eos_token'))[0]
 
   // Predict next tokens.
   let text = ''
-  for await (const [token, prob] of step(prompt, model, 0.8)) {
+  for await (const [token, prob] of step(prompt, model, eosToken, 0.8)) {
     const char = tokenizer.decode([token])
-    if (char == eosToken)
-      break
     text += char
     process.stdout.write(char)
   }
-
   process.stdout.write('\n')
+
+  if (false) {  // used for debugging leaks
+    console.log(`MLX RAM ${(mx.metal.getActiveMemory() / 1024 ** 2).toFixed(1)}M,`,
+                `Cache ${(mx.metal.getCacheMemory() / 1024 ** 2).toFixed(1)}M,`,
+                `JS Objects ${mx.getWrappersCount()}.`)
+  }
   return text
 }

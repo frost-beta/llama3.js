@@ -1,5 +1,52 @@
 import {core as mx, nn} from '@frost-beta/mlx'
 
+// A design of KV cache friendly to MLX's memory cache design, which allocates
+// arrays in same shapes.
+// See also https://github.com/ml-explore/mlx-examples/issues/724.
+export class KVCache {
+  constructor(headDim, nKVHeads) {
+    this.nKVHeads = nKVHeads
+    this.headDim = headDim
+    this.keys = null
+    this.values = null
+    this.offset = 0
+    this.step = 256
+  }
+
+  updateAndFetch(keys, values) {
+    const prev = this.offset
+    if (!this.keys || (prev + keys.shape[2] > this.keys.shape[2])) {
+      const nSteps = Math.floor((this.step + keys.shape[2] - 1) / this.step)
+      const shape = [1, this.nKVHeads, nSteps * this.step, this.headDim]
+      const newK = mx.zeros(shape, keys.dtype)
+      const newV = mx.zeros(shape, values.dtype)
+      if (this.keys) {
+        const old = [this.keys, this.values]
+        if (prev % this.step != 0) {
+          const get = ['...', mx.Slice(null, prev), mx.Slice()]
+          this.keys = this.keys.index(get)
+          this.values = this.values.index(get)
+        }
+        this.keys = mx.concatenate([this.keys, newK], 2)
+        this.values = mx.concatenate([this.values, newV], 2)
+        mx.dispose(old)
+      } else {
+        this.keys = newK
+        this.values = newV
+      }
+    }
+
+    this.offset += keys.shape[2]
+
+    const insert = ['...', mx.Slice(prev, this.offset), mx.Slice()]
+    this.keys.indexPut_(insert, keys)
+    this.values.indexPut_(insert, values)
+
+    const get = ['...', mx.Slice(null, this.offset), mx.Slice()]
+    return [this.keys.index(...get), this.values.index(...get)]
+  }
+}
+
 class Attention extends nn.Module {
   constructor(args) {
     super()
@@ -7,8 +54,8 @@ class Attention extends nn.Module {
     this.nHeads = args.numAttentionHeads
     this.nKVHeads = args.numKeyValueHeads
 
-    const headDim = args.hiddenSize / this.nHeads
-    this.scale = Math.pow(headDim, -0.5)
+    const headDim = Math.floor(args.hiddenSize / this.nHeads)
+    this.scale = headDim ** -0.5
 
     this.qProj = new nn.Linear(dim, this.nHeads * headDim, false)
     this.kProj = new nn.Linear(dim, this.nKVHeads * headDim, false)
@@ -33,12 +80,9 @@ class Attention extends nn.Module {
     values = values.reshape(B, L, this.nKVHeads, -1).transpose(0, 2, 1, 3)
 
     if (cache) {
-      const [keyCache, valueCache] = cache
-      queries = this.rope.forward(queries, keyCache.shape[2])
-      keys = this.rope.forward(keys, keyCache.shape[2])
-      keys = mx.concatenate([keyCache, keys], 2)
-      values = mx.concatenate([valueCache, values], 2)
-      mx.dispose(cache)
+      queries = this.rope.forward(queries, cache.offset)
+      keys = this.rope.forward(keys, cache.offset);
+      [keys, values] = cache.updateAndFetch(keys, values)
     } else {
       queries = this.rope.forward(queries)
       keys = this.rope.forward(keys)
@@ -46,7 +90,7 @@ class Attention extends nn.Module {
 
     let output = mx.fast.scaledDotProductAttention(queries, keys, values, this.scale, mask)
     output = output.transpose(0, 2, 1, 3).reshape(B, L, -1)
-    return [this.oProj.forward(output), [keys, values]]
+    return this.oProj.forward(output)
   }
 }
 
@@ -76,10 +120,9 @@ class TransformerBlock extends nn.Module {
   }
 
   forward(x, mask, cache) {
-    const [r, newCache] = this.selfAttn.forward(this.inputLayernorm.forward(x), mask, cache)
+    const r = this.selfAttn.forward(this.inputLayernorm.forward(x), mask, cache)
     const h = mx.add(x, r)
-    const out = mx.add(h, this.mlp.forward(this.postAttentionLayernorm.forward(h)))
-    return [out, newCache]
+    return mx.add(h, this.mlp.forward(this.postAttentionLayernorm.forward(h)))
   }
 }
 
@@ -100,16 +143,16 @@ class LlamaModel extends nn.Module {
 
     let mask
     if (h.shape[1] > 1) {
-      mask = nn.MultiHeadAttention.createAdditiveCausalMask(h.shape[1])
+      mask = createAdditiveCausalMask(h.shape[1], cache ? cache[0].offset : 0)
       mask = mask.astype(h.dtype)
     }
 
     cache = cache ?? new Array(this.layers.length)
 
     for (let i in this.layers)
-      [h, cache[i]] = this.layers[i].forward(h, mask, cache[i])
+      h = this.layers[i].forward(h, mask, cache[i])
 
-    return [this.norm.forward(h), cache]
+    return this.norm.forward(h)
   }
 }
 
@@ -118,19 +161,35 @@ export class Model extends nn.Module {
     const args = modelArgs(obj)
     super()
 
+    this.args = args
     this.modelType = args.modelType
     this.model = new LlamaModel(args)
     this.lmHead = new nn.Linear(args.hiddenSize, args.vocabSize, false)
   }
 
   forward(inputs, cache) {
-    const [out, updatedCache] = this.model.forward(inputs, cache)
-    return [this.lmHead.forward(out), updatedCache]
+    const out = this.model.forward(inputs, cache)
+    return this.lmHead.forward(out)
   }
 
   get layers() {
     return this.model.layers
   }
+
+  get headDim() {
+    return Math.floor(this.args.hiddenSize / this.args.numAttentionHeads)
+  }
+
+  get nKVHeads() {
+    return this.args.numKeyValueHeads
+  }
+}
+
+function createAdditiveCausalMask(N, offset = 0) {
+  const rinds = mx.arange(offset + N)
+  const linds = offset ? mx.arange(offset, offset + N) : rinds
+  const mask = mx.less(linds.index(mx.Slice(), null), rinds.index(null))
+  return mx.multiply(mask, -1e9)
 }
 
 function modelArgs({model_type,
