@@ -4,7 +4,8 @@
   "main": "llm.js",
   "type": "module",
   "bin": {
-    "llama3-chat": "chat.js"
+    "llama3-chat": "chat.js",
+    "llama3-generate": "generate.js"
   },
   "author": "zcbenz",
   "license": "MIT",

@@ -22,6 +22,12 @@ npm install -g llama3
 llama3-chat ./weights
 ```
 
+Or do text generation:
+
+```sh
+llama3-generate ./weights 'Write a short story'
+```
+
 ## Development
 
 This project serves as a demo of node-mlx, and code is intended to keep as
