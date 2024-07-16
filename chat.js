@@ -5,7 +5,7 @@ import {core as mx} from '@frost-beta/mlx'
 import {loadTokenizer, loadModel, step} from './llm.js'
 
 if (process.argv.length < 3) {
-  console.error('Usage: llama3 /path/to/weights/dir')
+  console.error('Usage: llama3-chat /path/to/weights/dir')
   process.exit(0)
 }
 
