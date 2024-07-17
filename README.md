@@ -33,4 +33,5 @@ llama3-generate ./weights 'Write a short story'
 This project serves as a demo of node-mlx, and code is intended to keep as
 simple as possible.
 
-For general purpose LLM modules, please visit :construction:.
+For general purpose LLM module, please visit
+[llm.js](https://github.com/frost-beta/llm.js).
